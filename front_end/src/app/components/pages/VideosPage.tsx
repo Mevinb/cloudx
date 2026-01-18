@@ -7,6 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/app
 import { Textarea } from '@/app/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/app/components/ui/select';
 import { Label } from '@/app/components/ui/label';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/app/components/ui/dialog';
 import { Trash2, Plus, Play, Loader2, Search, X, Youtube, HardDrive } from 'lucide-react';
 
 export default function VideosPage() {
@@ -104,24 +105,23 @@ export default function VideosPage() {
         </div>
         
         {isTeacherOrAdmin && (
-          <Button onClick={() => setShowForm(!showForm)} className="flex items-center gap-2">
-            {showForm ? <X className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
-            {showForm ? 'Cancel' : 'Add Video'}
+          <Button onClick={() => setShowForm(true)} className="flex items-center gap-2">
+            <Plus className="h-4 w-4" />
+            Add Video
           </Button>
         )}
       </div>
 
-      {/* Add Video Form */}
-      {showForm && isTeacherOrAdmin && (
-        <Card className="mb-6">
-          <CardHeader>
-            <CardTitle>Add Video</CardTitle>
-            <CardDescription>
+      {/* Add Video Dialog */}
+      <Dialog open={showForm} onOpenChange={setShowForm}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto scrollbar-hide">
+          <DialogHeader>
+            <DialogTitle>Add Video</DialogTitle>
+            <DialogDescription>
               Add a video from YouTube or Google Drive to the learning library
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleSubmit} className="space-y-4">
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleSubmit} className="space-y-4">
               {formError && (
                 <div className="bg-red-50 text-red-600 px-4 py-2 rounded-md text-sm">
                   {formError}
@@ -208,9 +208,8 @@ export default function VideosPage() {
                 {submitting ? 'Adding...' : 'Add Video'}
               </Button>
             </form>
-          </CardContent>
-        </Card>
-      )}
+        </DialogContent>
+      </Dialog>
 
       {/* Search */}
       <form onSubmit={handleSearch} className="mb-6">
