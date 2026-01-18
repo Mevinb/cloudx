@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { videosAPI, Video } from '@/services/api';
+import { videosAPI, Video, uploadAPI } from '@/services/api';
 import { useAuth } from '@/app/context/AuthContext';
 import { Button } from '@/app/components/ui/button';
 import { Input } from '@/app/components/ui/input';
@@ -8,7 +8,7 @@ import { Textarea } from '@/app/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/app/components/ui/select';
 import { Label } from '@/app/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/app/components/ui/dialog';
-import { Trash2, Plus, Play, Loader2, Search, X, Youtube, HardDrive } from 'lucide-react';
+import { Trash2, Plus, Play, Loader2, Search, X, Youtube, HardDrive, Upload } from 'lucide-react';
 
 export default function VideosPage() {
   const { user } = useAuth();
@@ -23,10 +23,12 @@ export default function VideosPage() {
     title: '', 
     youtubeUrl: '', 
     description: '', 
-    videoSource: 'youtube' as 'youtube' | 'gdrive'
+    videoSource: 'youtube' as 'youtube' | 'gdrive' | 'upload'
   });
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
 
   // Selected video for playback
   const [selectedVideo, setSelectedVideo] = useState<Video | null>(null);
@@ -38,9 +40,16 @@ export default function VideosPage() {
     try {
       setLoading(true);
       setError(null);
-      const response = await videosAPI.getAll({ search });
+      const params: any = {};
+      if (search && search.trim()) {
+        params.search = search;
+      }
+      const response = await videosAPI.getAll(params);
+      console.log('Videos API Response:', response);
+      console.log('Videos data:', response.data);
       setVideos(response.data);
     } catch (err) {
+      console.error('Failed to fetch videos:', err);
       setError(err instanceof Error ? err.message : 'Failed to load videos');
     } finally {
       setLoading(false);
@@ -62,16 +71,44 @@ export default function VideosPage() {
     e.preventDefault();
     setFormError(null);
 
-    if (!formData.title.trim() || !formData.youtubeUrl.trim()) {
-      setFormError(`Title and ${formData.videoSource === 'youtube' ? 'YouTube' : 'Google Drive'} URL are required`);
+    if (!formData.title.trim()) {
+      setFormError('Title is required');
+      return;
+    }
+
+    if (formData.videoSource === 'upload') {
+      if (!selectedFile) {
+        setFormError('Please select a video file to upload');
+        return;
+      }
+    } else if (!formData.youtubeUrl.trim()) {
+      setFormError(`${formData.videoSource === 'youtube' ? 'YouTube' : 'Google Drive'} URL is required`);
       return;
     }
 
     try {
       setSubmitting(true);
-      const response = await videosAPI.add(formData);
+      setUploadProgress(0);
+
+      let videoUrl = formData.youtubeUrl;
+
+      // Handle file upload
+      if (formData.videoSource === 'upload' && selectedFile) {
+        const uploadResult: any = await uploadAPI.uploadVideo(
+          selectedFile,
+          (progress) => setUploadProgress(progress)
+        );
+        videoUrl = uploadResult.url;
+      }
+
+      const response = await videosAPI.add({
+        ...formData,
+        youtubeUrl: videoUrl
+      });
       setVideos([response.data, ...videos]);
       setFormData({ title: '', youtubeUrl: '', description: '', videoSource: 'youtube' });
+      setSelectedFile(null);
+      setUploadProgress(0);
       setShowForm(false);
     } catch (err) {
       setFormError(err instanceof Error ? err.message : 'Failed to add video');
@@ -132,9 +169,10 @@ export default function VideosPage() {
                 <Label htmlFor="videoSource">Video Source</Label>
                 <Select 
                   value={formData.videoSource} 
-                  onValueChange={(value: 'youtube' | 'gdrive') => 
-                    setFormData({ ...formData, videoSource: value })
-                  }
+                  onValueChange={(value: 'youtube' | 'gdrive' | 'upload') => {
+                    setFormData({ ...formData, videoSource: value });
+                    setSelectedFile(null);
+                  }}
                   disabled={submitting}
                 >
                   <SelectTrigger>
@@ -153,6 +191,12 @@ export default function VideosPage() {
                         Google Drive
                       </div>
                     </SelectItem>
+                    <SelectItem value="upload">
+                      <div className="flex items-center gap-2">
+                        <Upload className="w-4 h-4" />
+                        Upload File
+                      </div>
+                    </SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -168,28 +212,65 @@ export default function VideosPage() {
                 />
               </div>
               
-              <div>
-                <Label htmlFor="url">
-                  {formData.videoSource === 'youtube' ? 'YouTube URL' : 'Google Drive URL'} *
-                </Label>
-                <Input
-                  id="url"
-                  value={formData.youtubeUrl}
-                  onChange={(e) => setFormData({ ...formData, youtubeUrl: e.target.value })}
-                  placeholder={
-                    formData.videoSource === 'youtube'
-                      ? 'https://www.youtube.com/watch?v=...'
-                      : 'https://drive.google.com/file/d/...'
-                  }
-                  disabled={submitting}
-                />
-                <p className="text-xs text-gray-500 mt-1">
-                  {formData.videoSource === 'youtube' 
-                    ? 'Supports youtube.com/watch, youtu.be, and embed links'
-                    : 'Paste the shareable link from Google Drive. Make sure the video is set to "Anyone with the link can view"'
-                  }
-                </p>
-              </div>
+              {formData.videoSource === 'upload' ? (
+                <div>
+                  <Label htmlFor="file">Video File *</Label>
+                  <div className="border-2 border-dashed rounded-lg p-6 text-center hover:border-blue-500 transition-colors">
+                    <Input
+                      id="file"
+                      type="file"
+                      accept="video/*"
+                      onChange={(e) => setSelectedFile(e.target.files?.[0] || null)}
+                      disabled={submitting}
+                      className="hidden"
+                    />
+                    <label htmlFor="file" className="cursor-pointer">
+                      <Upload className="w-12 h-12 mx-auto text-gray-400 mb-2" />
+                      <p className="text-sm text-gray-600">
+                        {selectedFile ? selectedFile.name : 'Click to select a video file'}
+                      </p>
+                      <p className="text-xs text-gray-500 mt-1">MP4, MOV, AVI, etc. (Max 100MB)</p>
+                    </label>
+                  </div>
+                  {uploadProgress > 0 && uploadProgress < 100 && (
+                    <div className="mt-2">
+                      <div className="flex justify-between text-sm text-gray-600 mb-1">
+                        <span>Uploading...</span>
+                        <span>{uploadProgress}%</span>
+                      </div>
+                      <div className="w-full bg-gray-200 rounded-full h-2">
+                        <div 
+                          className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                          style={{ width: `${uploadProgress}%` }}
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div>
+                  <Label htmlFor="url">
+                    {formData.videoSource === 'youtube' ? 'YouTube URL' : 'Google Drive URL'} *
+                  </Label>
+                  <Input
+                    id="url"
+                    value={formData.youtubeUrl}
+                    onChange={(e) => setFormData({ ...formData, youtubeUrl: e.target.value })}
+                    placeholder={
+                      formData.videoSource === 'youtube'
+                        ? 'https://www.youtube.com/watch?v=...'
+                        : 'https://drive.google.com/file/d/...'
+                    }
+                    disabled={submitting}
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    {formData.videoSource === 'youtube' 
+                      ? 'Supports youtube.com/watch, youtu.be, and embed links'
+                      : 'Paste the shareable link from Google Drive. Make sure the video is set to "Anyone with the link can view"'
+                    }
+                  </p>
+                </div>
+              )}
               
               <div>
                 <Label htmlFor="description">Description (optional)</Label>
@@ -241,17 +322,27 @@ export default function VideosPage() {
         <Card className="mb-6">
           <CardContent className="p-0">
             <div className="aspect-video w-full">
-              <iframe
-                src={
-                  selectedVideo.videoId?.startsWith('gdrive_')
-                    ? `https://drive.google.com/file/d/${selectedVideo.videoId.replace('gdrive_', '')}/preview`
-                    : `https://www.youtube.com/embed/${selectedVideo.videoId}?autoplay=1`
-                }
-                title={selectedVideo.title}
-                className="w-full h-full rounded-t-lg"
-                allowFullScreen
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-              />
+              {selectedVideo.videoId?.startsWith('uploaded_') ? (
+                <video
+                  src={selectedVideo.youtubeUrl}
+                  title={selectedVideo.title}
+                  className="w-full h-full rounded-t-lg"
+                  controls
+                  autoPlay
+                />
+              ) : (
+                <iframe
+                  src={
+                    selectedVideo.videoId?.startsWith('gdrive_')
+                      ? `https://drive.google.com/file/d/${selectedVideo.videoId.replace('gdrive_', '')}/preview`
+                      : `https://www.youtube.com/embed/${selectedVideo.videoId}?autoplay=1`
+                  }
+                  title={selectedVideo.title}
+                  className="w-full h-full rounded-t-lg"
+                  allowFullScreen
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                />
+              )}
             </div>
             <div className="p-4">
               <div className="flex justify-between items-start">
@@ -313,7 +404,18 @@ export default function VideosPage() {
                   onClick={() => setSelectedVideo(video)}
                 >
                   <div className="relative aspect-video bg-gray-100">
-                    {video.videoId?.startsWith('gdrive_') ? (
+                    {video.videoId?.startsWith('uploaded_') ? (
+                      <img
+                        src={video.youtubeUrl.replace('/video/upload/', '/video/upload/w_400,h_300,c_fill,q_auto/').replace(/\.(mp4|mov|avi|webm)$/i, '.jpg')}
+                        alt={video.title}
+                        className="w-full h-full object-cover"
+                        onError={(e) => {
+                          // Fallback to gradient if thumbnail fails
+                          e.currentTarget.style.display = 'none';
+                          e.currentTarget.parentElement!.innerHTML = '<div class="w-full h-full flex items-center justify-center bg-gradient-to-br from-purple-500 to-pink-600"><svg class="h-16 w-16 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path></svg></div>';
+                        }}
+                      />
+                    ) : video.videoId?.startsWith('gdrive_') ? (
                       <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-blue-500 to-indigo-600">
                         <HardDrive className="h-16 w-16 text-white" />
                       </div>
@@ -327,6 +429,12 @@ export default function VideosPage() {
                     <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
                       <Play className="h-12 w-12 text-white" />
                     </div>
+                    {video.videoId?.startsWith('uploaded_') && (
+                      <div className="absolute top-2 right-2 bg-white/90 px-2 py-1 rounded text-xs font-medium flex items-center gap-1">
+                        <Upload className="h-3 w-3" />
+                        Uploaded
+                      </div>
+                    )}
                     {video.videoId?.startsWith('gdrive_') && (
                       <div className="absolute top-2 right-2 bg-white/90 px-2 py-1 rounded text-xs font-medium flex items-center gap-1">
                         <HardDrive className="h-3 w-3" />

@@ -89,7 +89,12 @@ exports.addVideo = asyncHandler(async (req, res, next) => {
 
   // Extract video ID based on source
   let videoId;
-  if (videoSource === 'gdrive') {
+  
+  if (videoSource === 'upload') {
+    // For uploaded videos, use a hash of the URL as videoId
+    const crypto = require('crypto');
+    videoId = 'uploaded_' + crypto.createHash('md5').update(youtubeUrl).digest('hex').substring(0, 16);
+  } else if (videoSource === 'gdrive') {
     videoId = extractGoogleDriveId(youtubeUrl);
     if (!videoId) {
       return next(new AppError('Invalid Google Drive URL. Please use a shareable link.', 400));
@@ -114,6 +119,7 @@ exports.addVideo = asyncHandler(async (req, res, next) => {
     title,
     youtubeUrl,
     videoId,
+    videoSource,
     description,
     addedBy: req.user._id,
   });
@@ -147,11 +153,15 @@ exports.getVideos = asyncHandler(async (req, res, next) => {
   // Pagination
   const skip = (parseInt(page) - 1) * parseInt(limit);
 
+  console.log('Fetching videos with query:', query);
+
   const videos = await Video.find(query)
     .populate('addedBy', 'name email')
     .sort({ createdAt: -1 })
     .skip(skip)
     .limit(parseInt(limit));
+
+  console.log(`Found ${videos.length} videos`);
 
   const total = await Video.countDocuments(query);
 

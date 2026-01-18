@@ -17,6 +17,7 @@ const assignmentRoutes = require('./assignments');
 const announcementRoutes = require('./announcements');
 const dashboardRoutes = require('./dashboard');
 const videoRoutes = require('./videoRoutes');
+const uploadRoutes = require('./upload');
 
 // API health check
 router.get('/health', (req, res) => {
@@ -39,5 +40,6 @@ router.use('/assignments', assignmentRoutes);
 router.use('/announcements', announcementRoutes);
 router.use('/dashboard', dashboardRoutes);
 router.use('/videos', videoRoutes);
+router.use('/upload', uploadRoutes);
 
 module.exports = router;

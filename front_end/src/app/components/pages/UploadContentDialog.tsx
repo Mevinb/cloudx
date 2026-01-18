@@ -6,7 +6,7 @@ import { Input } from '@/app/components/ui/input';
 import { Label } from '@/app/components/ui/label';
 import { Textarea } from '@/app/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/app/components/ui/select';
-import api from '@/services/api';
+import api, { uploadAPI } from '@/services/api';
 
 interface UploadContentDialogProps {
   open: boolean;
@@ -30,10 +30,13 @@ export const UploadContentDialog: React.FC<UploadContentDialogProps> = ({
     pageCount: '',
     slideCount: '',
     tags: '',
-    accessLevel: 'members'
+    accessLevel: 'members',
+    useFileUpload: false
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isSaving, setIsSaving] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
 
   const contentTypes = [
     { value: 'video', label: 'Video Tutorial', icon: Video },
@@ -91,16 +94,22 @@ export const UploadContentDialog: React.FC<UploadContentDialogProps> = ({
     if (!formData.topic) {
       newErrors.topic = 'Topic is required';
     }
-    if (!formData.url.trim()) {
-      newErrors.url = 'URL or link is required';
-    }
-
-    // Type-specific validations
-    if (formData.type === 'video' && formData.embedUrl && !isValidUrl(formData.embedUrl)) {
-      newErrors.embedUrl = 'Please enter a valid URL';
-    }
-    if (!isValidUrl(formData.url)) {
-      newErrors.url = 'Please enter a valid URL';
+    
+    if (formData.useFileUpload) {
+      if (!selectedFile) {
+        newErrors.file = 'Please select a file to upload';
+      }
+    } else {
+      if (!formData.url.trim()) {
+        newErrors.url = 'URL or link is required';
+      }
+      // Type-specific validations
+      if (formData.type === 'video' && formData.embedUrl && !isValidUrl(formData.embedUrl)) {
+        newErrors.embedUrl = 'Please enter a valid URL';
+      }
+      if (!isValidUrl(formData.url)) {
+        newErrors.url = 'Please enter a valid URL';
+      }
     }
 
     setErrors(newErrors);
@@ -125,13 +134,25 @@ export const UploadContentDialog: React.FC<UploadContentDialogProps> = ({
 
     try {
       setIsSaving(true);
+      setUploadProgress(0);
+
+      let contentUrl = formData.url.trim();
+
+      // Handle file upload
+      if (formData.useFileUpload && selectedFile) {
+        const isVideo = formData.type === 'video';
+        const uploadResult: any = isVideo 
+          ? await uploadAPI.uploadVideo(selectedFile, (progress) => setUploadProgress(progress))
+          : await uploadAPI.uploadImage(selectedFile);
+        contentUrl = uploadResult.url;
+      }
 
       const contentData: any = {
         title: formData.title.trim(),
         description: formData.description.trim(),
         type: formData.type,
         topic: formData.topic,
-        url: formData.url.trim(),
+        url: contentUrl,
         accessLevel: formData.accessLevel,
         tags: formData.tags ? formData.tags.split(',').map(tag => tag.trim()).filter(Boolean) : undefined
       };
@@ -164,8 +185,11 @@ export const UploadContentDialog: React.FC<UploadContentDialogProps> = ({
         pageCount: '',
         slideCount: '',
         tags: '',
-        accessLevel: 'members'
+        accessLevel: 'members',
+        useFileUpload: false
       });
+      setSelectedFile(null);
+      setUploadProgress(0);
       setErrors({});
       
       onSuccess();
@@ -191,8 +215,11 @@ export const UploadContentDialog: React.FC<UploadContentDialogProps> = ({
         pageCount: '',
         slideCount: '',
         tags: '',
-        accessLevel: 'members'
+        accessLevel: 'members',
+        useFileUpload: false
       });
+      setSelectedFile(null);
+      setUploadProgress(0);
       setErrors({});
       onClose();
     }
@@ -308,36 +335,107 @@ export const UploadContentDialog: React.FC<UploadContentDialogProps> = ({
             </div>
           </div>
 
-          {/* URL */}
-          <div className="space-y-2">
-            <Label htmlFor="url">
-              {formData.type === 'video' ? 'Video URL' : 
-               formData.type === 'link' ? 'Link URL' : 
-               'File URL'} <span className="text-red-500">*</span>
-            </Label>
-            <Input
-              id="url"
-              name="url"
-              type="url"
-              value={formData.url}
-              onChange={handleInputChange}
-              placeholder={
-                formData.type === 'video' ? 'https://example.com/video.mp4' :
-                formData.type === 'link' ? 'https://external-resource.com' :
-                'https://example.com/document.pdf'
-              }
-              className={errors.url ? 'border-red-500' : ''}
+          {/* Upload Method Toggle */}
+          <div className="flex items-center space-x-2 p-3 bg-gray-50 rounded-lg">
+            <input
+              type="checkbox"
+              id="useFileUpload"
+              checked={formData.useFileUpload}
+              onChange={(e) => {
+                setFormData({ ...formData, useFileUpload: e.target.checked });
+                setSelectedFile(null);
+                setErrors({});
+              }}
+              className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
             />
-            {errors.url && <p className="text-sm text-red-500">{errors.url}</p>}
-            <p className="text-xs text-gray-500">
-              {formData.type === 'video' ? 'Direct link to video file or YouTube/Vimeo URL' :
-               formData.type === 'link' ? 'URL to external resource' :
-               'Direct link to the file (PDF, PPT, etc.)'}
-            </p>
+            <Label htmlFor="useFileUpload" className="cursor-pointer">
+              Upload file from my computer instead of providing a URL
+            </Label>
           </div>
 
+          {/* File Upload or URL */}
+          {formData.useFileUpload ? (
+            <div className="space-y-2">
+              <Label htmlFor="file">
+                {formData.type === 'video' ? 'Video File' : 
+                 formData.type === 'pdf' ? 'PDF File' :
+                 formData.type === 'slides' ? 'Presentation File' :
+                 'File'} <span className="text-red-500">*</span>
+              </Label>
+              <div className="border-2 border-dashed rounded-lg p-6 text-center hover:border-blue-500 transition-colors">
+                <Input
+                  id="file"
+                  type="file"
+                  accept={
+                    formData.type === 'video' ? 'video/*' :
+                    formData.type === 'pdf' ? 'application/pdf' :
+                    formData.type === 'slides' ? '.ppt,.pptx,.key' :
+                    'image/*,application/pdf,.doc,.docx'
+                  }
+                  onChange={(e) => setSelectedFile(e.target.files?.[0] || null)}
+                  disabled={isSaving}
+                  className="hidden"
+                />
+                <label htmlFor="file" className="cursor-pointer">
+                  <Upload className="w-12 h-12 mx-auto text-gray-400 mb-2" />
+                  <p className="text-sm text-gray-600">
+                    {selectedFile ? selectedFile.name : 'Click to select a file'}
+                  </p>
+                  <p className="text-xs text-gray-500 mt-1">
+                    {formData.type === 'video' ? 'MP4, MOV, AVI, etc. (Max 100MB)' :
+                     formData.type === 'pdf' ? 'PDF files only' :
+                     formData.type === 'slides' ? 'PPT, PPTX, KEY files' :
+                     'Images and documents'}
+                  </p>
+                </label>
+              </div>
+              {uploadProgress > 0 && uploadProgress < 100 && (
+                <div className="mt-2">
+                  <div className="flex justify-between text-sm text-gray-600 mb-1">
+                    <span>Uploading...</span>
+                    <span>{uploadProgress}%</span>
+                  </div>
+                  <div className="w-full bg-gray-200 rounded-full h-2">
+                    <div 
+                      className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                      style={{ width: `${uploadProgress}%` }}
+                    />
+                  </div>
+                </div>
+              )}
+              {errors.file && <p className="text-sm text-red-500">{errors.file}</p>}
+            </div>
+          ) : (
+            <div className="space-y-2">
+              <Label htmlFor="url">
+                {formData.type === 'video' ? 'Video URL' : 
+                 formData.type === 'link' ? 'Link URL' : 
+                 'File URL'} <span className="text-red-500">*</span>
+              </Label>
+              <Input
+                id="url"
+                name="url"
+                type="url"
+                value={formData.url}
+                onChange={handleInputChange}
+                placeholder={
+                  formData.type === 'video' ? 'https://example.com/video.mp4' :
+                  formData.type === 'link' ? 'https://external-resource.com' :
+                  'https://example.com/document.pdf'
+                }
+                className={errors.url ? 'border-red-500' : ''}
+              />
+              {errors.url && <p className="text-sm text-red-500">{errors.url}</p>}
+              <p className="text-xs text-gray-500">
+                {formData.type === 'video' ? 'Direct link to video file or YouTube/Vimeo URL' :
+                 formData.type === 'link' ? 'URL to external resource' :
+                 'Direct link to the file (PDF, PPT, etc.)'}
+              </p>
+            </div>
+          )}
+
           {/* Type-specific fields */}
-          {formData.type === 'video' && (
+          {formData.type === 'video' && !formData.useFileUpload && (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="embedUrl">Embed URL (Optional)</Label>

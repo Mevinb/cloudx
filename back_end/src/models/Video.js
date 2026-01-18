@@ -23,6 +23,11 @@ const videoSchema = new mongoose.Schema(
       required: [true, 'Video URL is required'],
       trim: true,
     },
+    videoSource: {
+      type: String,
+      enum: ['youtube', 'gdrive', 'upload'],
+      default: 'youtube',
+    },
     description: {
       type: String,
       trim: true,

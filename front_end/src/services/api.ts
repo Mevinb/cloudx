@@ -438,6 +438,66 @@ export interface Video {
   createdAt: string;
 }
 
+// Upload API
+export const uploadAPI = {
+  uploadImage: async (file: File) => {
+    const formData = new FormData();
+    formData.append('file', file);
+
+    const response = await fetch(`${API_BASE_URL}/upload/image`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+      },
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.message || 'Failed to upload image');
+    }
+
+    return response.json();
+  },
+
+  uploadVideo: async (file: File, onProgress?: (progress: number) => void) => {
+    const formData = new FormData();
+    formData.append('file', file);
+
+    return new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+
+      xhr.upload.addEventListener('progress', (e) => {
+        if (e.lengthComputable && onProgress) {
+          const progress = Math.round((e.loaded / e.total) * 100);
+          onProgress(progress);
+        }
+      });
+
+      xhr.addEventListener('load', () => {
+        if (xhr.status >= 200 && xhr.status < 300) {
+          resolve(JSON.parse(xhr.responseText));
+        } else {
+          reject(new Error('Upload failed'));
+        }
+      });
+
+      xhr.addEventListener('error', () => reject(new Error('Upload failed')));
+      xhr.addEventListener('abort', () => reject(new Error('Upload cancelled')));
+
+      xhr.open('POST', `${API_BASE_URL}/upload/video`);
+      xhr.setRequestHeader('Authorization', `Bearer ${accessToken}`);
+      xhr.send(formData);
+    });
+  },
+
+  deleteMedia: (publicId: string, resourceType: 'image' | 'video' = 'image') =>
+    request('/upload', {
+      method: 'DELETE',
+      body: { publicId, resourceType },
+    }),
+};
+
 export default {
   auth: authAPI,
   users: usersAPI,
@@ -449,4 +509,5 @@ export default {
   announcements: announcementsAPI,
   dashboard: dashboardAPI,
   videos: videosAPI,
+  upload: uploadAPI,
 };

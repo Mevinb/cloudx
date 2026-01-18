@@ -17,6 +17,13 @@ const { protect, isTeacherOrAdmin } = require('../middleware/auth');
 // All routes require authentication
 router.use(protect);
 
+// Debug middleware
+router.use((req, res, next) => {
+  console.log(`[Videos Route] ${req.method} ${req.originalUrl}`);
+  console.log('[Videos Route] User:', req.user?.email || 'Not authenticated');
+  next();
+});
+
 // GET /api/v1/videos - Get all videos (all authenticated users)
 // POST /api/v1/videos - Add a video (teachers/admins only)
 router
