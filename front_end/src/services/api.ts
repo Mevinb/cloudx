@@ -3,7 +3,7 @@
  * Centralized API service for making HTTP requests to the backend
  */
 
-const API_BASE_URL = import.meta.env.VITE_API_URL;
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://cloudx-6lw1.onrender.com/api/v1';
 
 // Token management - memory only, no localStorage
 let accessToken: string | null = null;
