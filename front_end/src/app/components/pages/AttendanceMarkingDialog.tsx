@@ -201,7 +201,7 @@ export const AttendanceMarkingDialog: React.FC<AttendanceMarkingDialogProps> = (
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="w-fit min-w-[800px] max-w-[95vw] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-xl">
             <UserCheck className="w-6 h-6 text-blue-600" />
@@ -268,7 +268,7 @@ export const AttendanceMarkingDialog: React.FC<AttendanceMarkingDialogProps> = (
             </div>
 
             {/* Students Table */}
-            <div className="border rounded-lg overflow-hidden">
+            <div className="border rounded-lg">
               <Table>
                 <TableHeader>
                   <TableRow className="bg-gray-50">
