@@ -6,6 +6,7 @@ import { Input } from '@/app/components/ui/input';
 import { Badge } from '@/app/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/app/components/ui/tabs';
 import { useAuth } from '@/app/context/AuthContext';
+import { UploadContentDialog } from './UploadContentDialog';
 import api from '@/services/api';
 
 export const LearningContentPage: React.FC = () => {
@@ -14,22 +15,46 @@ export const LearningContentPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState('all');
   const [contentItems, setContentItems] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [showUploadDialog, setShowUploadDialog] = useState(false);
+
+  const fetchContent = async () => {
+    try {
+      setIsLoading(true);
+      const response = await api.content.getAll();
+      setContentItems((response as any).data || []);
+    } catch (error) {
+      console.error('Failed to fetch content:', error);
+      setContentItems([]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const fetchContent = async () => {
-      try {
-        setIsLoading(true);
-        const response = await api.content.getAll();
-        setContentItems(response.data || []);
-      } catch (error) {
-        console.error('Failed to fetch content:', error);
-        setContentItems([]);
-      } finally {
-        setIsLoading(false);
-      }
-    };
     fetchContent();
   }, []);
+
+  const handleContentUploaded = () => {
+    fetchContent();
+  };
+
+  // Filter by topic handler
+  const handleFilterByTopic = () => {
+    // Get unique topics from content
+    const topics = [...new Set(contentItems.map(item => item.topic))].filter(Boolean);
+    
+    if (topics.length === 0) {
+      alert('No topics available to filter.');
+      return;
+    }
+    
+    const topicList = topics.map((t, i) => `${i + 1}. ${t}`).join('\n');
+    const selectedTopic = prompt(`Filter by Topic:\n\nAvailable topics:\n${topicList}\n\nEnter topic name:`);
+    
+    if (selectedTopic) {
+      setSearchQuery(selectedTopic.trim());
+    }
+  };
 
   if (isLoading) {
     return (
@@ -43,28 +68,72 @@ export const LearningContentPage: React.FC = () => {
   }
 
   // Handle video watch
-  const handleWatchVideo = (item: any) => {
-    // Open video in new tab or modal
-    alert(`Opening video: ${item.title}\n\nNote: Video URL would be fetched from database in production.`);
-    // In production: window.open(item.videoUrl, '_blank');
+  const handleWatchVideo = async (item: any) => {
+    try {
+      // Track view
+      if (item._id) {
+        await api.content.trackDownload(item._id);
+      }
+      
+      // Open video URL
+      if (item.embedUrl) {
+        window.open(item.embedUrl, '_blank');
+      } else if (item.url) {
+        window.open(item.url, '_blank');
+      }
+      
+      // Refresh content to update view count
+      fetchContent();
+    } catch (error) {
+      console.error('Failed to open video:', error);
+      alert('Failed to open video. Please try again.');
+    }
   };
 
   // Handle download
-  const handleDownload = (item: any) => {
-    // Download file
-    alert(`Downloading: ${item.title}\n\nNote: File URL would be fetched from database in production.`);
-    // In production: 
-    // const link = document.createElement('a');
-    // link.href = item.fileUrl;
-    // link.download = item.title;
-    // link.click();
+  const handleDownload = async (item: any) => {
+    try {
+      // Track download
+      if (item._id) {
+        await api.content.trackDownload(item._id);
+      }
+      
+      // Open URL in new tab (browser will handle download)
+      if (item.url) {
+        window.open(item.url, '_blank');
+      }
+      
+      // Refresh content to update download count
+      fetchContent();
+    } catch (error) {
+      console.error('Failed to download:', error);
+      alert('Failed to download content. Please try again.');
+    }
   };
 
   // Handle view details
   const handleViewDetails = (item: any) => {
-    const uploadedBy = typeof item.uploadedBy === 'string' ? item.uploadedBy : item.uploadedBy?.name || 'Unknown';
-    const uploadDate = item.uploadDate || new Date(item.createdAt).toLocaleDateString();
-    alert(`Viewing details for: ${item.title}\n\nType: ${item.type}\nTopic: ${item.topic}\nDescription: ${item.description}\nUploaded by: ${uploadedBy}\nDate: ${uploadDate}`);
+    const uploadedBy = typeof item.uploadedBy === 'object' ? item.uploadedBy?.name : 'Unknown';
+    const uploadDate = item.createdAt ? new Date(item.createdAt).toLocaleDateString() : 'Unknown';
+    const tags = item.tags && item.tags.length > 0 ? item.tags.join(', ') : 'None';
+    
+    let details = `📚 ${item.title}\n\n`;
+    details += `📝 Description: ${item.description || 'No description'}\n\n`;
+    details += `📂 Type: ${item.type.toUpperCase()}\n`;
+    details += `📌 Topic: ${item.topic}\n`;
+    details += `👤 Uploaded by: ${uploadedBy}\n`;
+    details += `📅 Date: ${uploadDate}\n`;
+    details += `🏷️  Tags: ${tags}\n`;
+    
+    if (item.duration) details += `⏱️  Duration: ${item.duration}\n`;
+    if (item.pageCount) details += `📄 Pages: ${item.pageCount}\n`;
+    if (item.slideCount) details += `🎞️  Slides: ${item.slideCount}\n`;
+    if (item.views) details += `👁️  Views: ${item.views}\n`;
+    if (item.downloads) details += `⬇️  Downloads: ${item.downloads}\n`;
+    
+    details += `\n🔗 URL: ${item.url || 'N/A'}`;
+    
+    alert(details);
   };
 
   const getTypeIcon = (type: string) => {
@@ -121,20 +190,34 @@ export const LearningContentPage: React.FC = () => {
             </div>
 
             <div className="flex flex-wrap items-center gap-4 text-sm text-gray-600 mt-3">
-              <span>By {typeof item.uploadedBy === 'string' ? item.uploadedBy : item.uploadedBy?.name || 'Unknown'}</span>
+              <span>By {typeof item.uploadedBy === 'object' ? item.uploadedBy?.name : 'Unknown'}</span>
               <span>•</span>
-              <span>{item.uploadDate || new Date(item.createdAt).toLocaleDateString()}</span>
-              <span>•</span>
-              {item.duration && <span>{item.duration}</span>}
-              {item.pages && <span>{item.pages} pages</span>}
-              {item.slides && <span>{item.slides} slides</span>}
-              {item.views && (
+              <span>{item.createdAt ? new Date(item.createdAt).toLocaleDateString() : 'N/A'}</span>
+              {item.duration && (
+                <>
+                  <span>•</span>
+                  <span>{item.duration}</span>
+                </>
+              )}
+              {item.pageCount && (
+                <>
+                  <span>•</span>
+                  <span>{item.pageCount} pages</span>
+                </>
+              )}
+              {item.slideCount && (
+                <>
+                  <span>•</span>
+                  <span>{item.slideCount} slides</span>
+                </>
+              )}
+              {item.views > 0 && (
                 <>
                   <span>•</span>
                   <span>{item.views} views</span>
                 </>
               )}
-              {item.downloads && (
+              {item.downloads > 0 && (
                 <>
                   <span>•</span>
                   <span>{item.downloads} downloads</span>
@@ -186,7 +269,10 @@ export const LearningContentPage: React.FC = () => {
           <p className="text-gray-600 mt-1">Access videos, documents, and presentations</p>
         </div>
         {(user?.role === 'teacher' || user?.role === 'admin') && (
-          <Button className="bg-gradient-to-r from-blue-600 to-indigo-600">
+          <Button 
+            onClick={() => setShowUploadDialog(true)}
+            className="bg-gradient-to-r from-blue-600 to-indigo-600"
+          >
             <Plus className="w-4 h-4 mr-2" />
             Upload Content
           </Button>
@@ -255,7 +341,10 @@ export const LearningContentPage: React.FC = () => {
                 className="pl-9"
               />
             </div>
-            <Button variant="outline">
+            <Button 
+              variant="outline"
+              onClick={handleFilterByTopic}
+            >
               <Filter className="w-4 h-4 mr-2" />
               Filter by Topic
             </Button>
@@ -287,6 +376,15 @@ export const LearningContentPage: React.FC = () => {
           )}
         </div>
       </Tabs>
+
+      {/* Upload Content Dialog */}
+      {showUploadDialog && (
+        <UploadContentDialog
+          open={showUploadDialog}
+          onClose={() => setShowUploadDialog(false)}
+          onSuccess={handleContentUploaded}
+        />
+      )}
     </div>
   );
 };

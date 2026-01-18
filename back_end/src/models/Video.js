@@ -1,6 +1,6 @@
 /**
  * Video Model
- * Stores YouTube video references for learning content
+ * Stores YouTube and Google Drive video references for learning content
  */
 
 const mongoose = require('mongoose');
@@ -15,12 +15,12 @@ const videoSchema = new mongoose.Schema(
     },
     videoId: {
       type: String,
-      required: [true, 'YouTube video ID is required'],
+      required: [true, 'Video ID is required'],
       trim: true,
     },
     youtubeUrl: {
       type: String,
-      required: [true, 'YouTube URL is required'],
+      required: [true, 'Video URL is required'],
       trim: true,
     },
     description: {
@@ -49,13 +49,22 @@ const videoSchema = new mongoose.Schema(
 videoSchema.index({ createdAt: -1 });
 videoSchema.index({ addedBy: 1 });
 
-// Virtual for embed URL
+// Virtual for embed URL (supports both YouTube and Google Drive)
 videoSchema.virtual('embedUrl').get(function () {
+  if (this.videoId?.startsWith('gdrive_')) {
+    const driveId = this.videoId.replace('gdrive_', '');
+    return `https://drive.google.com/file/d/${driveId}/preview`;
+  }
   return `https://www.youtube.com/embed/${this.videoId}`;
 });
 
-// Virtual for thumbnail URL
+// Virtual for thumbnail URL (supports both YouTube and Google Drive)
 videoSchema.virtual('thumbnailUrl').get(function () {
+  if (this.videoId?.startsWith('gdrive_')) {
+    // Google Drive doesn't provide direct thumbnail URLs
+    // Return null and handle in frontend
+    return null;
+  }
   return `https://img.youtube.com/vi/${this.videoId}/mqdefault.jpg`;
 });
 

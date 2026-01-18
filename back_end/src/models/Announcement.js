@@ -110,8 +110,10 @@ announcementSchema.statics.getForUser = async function(user, options = {}) {
     if (user.batch) {
       audienceFilter.push({ targetAudience: 'batch', targetBatch: user.batch });
     }
-  } else if (user.role === 'teacher') {
+  } else if (user.role === 'teacher' || user.role === 'admin') {
     audienceFilter.push({ targetAudience: 'teachers' });
+    audienceFilter.push({ targetAudience: 'students' });
+    audienceFilter.push({ targetAudience: 'batch' });
   }
   
   query.$and = [{ $or: audienceFilter }];

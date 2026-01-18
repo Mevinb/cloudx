@@ -5,7 +5,9 @@ import { Button } from '@/app/components/ui/button';
 import { Input } from '@/app/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/app/components/ui/card';
 import { Textarea } from '@/app/components/ui/textarea';
-import { Trash2, Plus, Play, Loader2, Search, X } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/app/components/ui/select';
+import { Label } from '@/app/components/ui/label';
+import { Trash2, Plus, Play, Loader2, Search, X, Youtube, HardDrive } from 'lucide-react';
 
 export default function VideosPage() {
   const { user } = useAuth();
@@ -16,7 +18,12 @@ export default function VideosPage() {
   
   // Form state for adding videos
   const [showForm, setShowForm] = useState(false);
-  const [formData, setFormData] = useState({ title: '', youtubeUrl: '', description: '' });
+  const [formData, setFormData] = useState({ 
+    title: '', 
+    youtubeUrl: '', 
+    description: '', 
+    videoSource: 'youtube' as 'youtube' | 'gdrive'
+  });
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
 
@@ -55,7 +62,7 @@ export default function VideosPage() {
     setFormError(null);
 
     if (!formData.title.trim() || !formData.youtubeUrl.trim()) {
-      setFormError('Title and YouTube URL are required');
+      setFormError(`Title and ${formData.videoSource === 'youtube' ? 'YouTube' : 'Google Drive'} URL are required`);
       return;
     }
 
@@ -63,7 +70,7 @@ export default function VideosPage() {
       setSubmitting(true);
       const response = await videosAPI.add(formData);
       setVideos([response.data, ...videos]);
-      setFormData({ title: '', youtubeUrl: '', description: '' });
+      setFormData({ title: '', youtubeUrl: '', description: '', videoSource: 'youtube' });
       setShowForm(false);
     } catch (err) {
       setFormError(err instanceof Error ? err.message : 'Failed to add video');
@@ -108,9 +115,9 @@ export default function VideosPage() {
       {showForm && isTeacherOrAdmin && (
         <Card className="mb-6">
           <CardHeader>
-            <CardTitle>Add YouTube Video</CardTitle>
+            <CardTitle>Add Video</CardTitle>
             <CardDescription>
-              Paste a YouTube link to add it to the learning library
+              Add a video from YouTube or Google Drive to the learning library
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -121,11 +128,39 @@ export default function VideosPage() {
                 </div>
               )}
               
+              <div className="space-y-2">
+                <Label htmlFor="videoSource">Video Source</Label>
+                <Select 
+                  value={formData.videoSource} 
+                  onValueChange={(value: 'youtube' | 'gdrive') => 
+                    setFormData({ ...formData, videoSource: value })
+                  }
+                  disabled={submitting}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="youtube">
+                      <div className="flex items-center gap-2">
+                        <Youtube className="w-4 h-4" />
+                        YouTube
+                      </div>
+                    </SelectItem>
+                    <SelectItem value="gdrive">
+                      <div className="flex items-center gap-2">
+                        <HardDrive className="w-4 h-4" />
+                        Google Drive
+                      </div>
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Video Title *
-                </label>
+                <Label htmlFor="title">Video Title *</Label>
                 <Input
+                  id="title"
                   value={formData.title}
                   onChange={(e) => setFormData({ ...formData, title: e.target.value })}
                   placeholder="e.g., Introduction to Cloud Computing"
@@ -134,25 +169,32 @@ export default function VideosPage() {
               </div>
               
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  YouTube URL *
-                </label>
+                <Label htmlFor="url">
+                  {formData.videoSource === 'youtube' ? 'YouTube URL' : 'Google Drive URL'} *
+                </Label>
                 <Input
+                  id="url"
                   value={formData.youtubeUrl}
                   onChange={(e) => setFormData({ ...formData, youtubeUrl: e.target.value })}
-                  placeholder="https://www.youtube.com/watch?v=... or https://youtu.be/..."
+                  placeholder={
+                    formData.videoSource === 'youtube'
+                      ? 'https://www.youtube.com/watch?v=...'
+                      : 'https://drive.google.com/file/d/...'
+                  }
                   disabled={submitting}
                 />
                 <p className="text-xs text-gray-500 mt-1">
-                  Supports youtube.com/watch, youtu.be, and embed links
+                  {formData.videoSource === 'youtube' 
+                    ? 'Supports youtube.com/watch, youtu.be, and embed links'
+                    : 'Paste the shareable link from Google Drive. Make sure the video is set to "Anyone with the link can view"'
+                  }
                 </p>
               </div>
               
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Description (optional)
-                </label>
+                <Label htmlFor="description">Description (optional)</Label>
                 <Textarea
+                  id="description"
                   value={formData.description}
                   onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                   placeholder="Brief description of the video content..."
@@ -201,7 +243,11 @@ export default function VideosPage() {
           <CardContent className="p-0">
             <div className="aspect-video w-full">
               <iframe
-                src={`https://www.youtube.com/embed/${selectedVideo.videoId}?autoplay=1`}
+                src={
+                  selectedVideo.videoId?.startsWith('gdrive_')
+                    ? `https://drive.google.com/file/d/${selectedVideo.videoId.replace('gdrive_', '')}/preview`
+                    : `https://www.youtube.com/embed/${selectedVideo.videoId}?autoplay=1`
+                }
                 title={selectedVideo.title}
                 className="w-full h-full rounded-t-lg"
                 allowFullScreen
@@ -268,14 +314,26 @@ export default function VideosPage() {
                   onClick={() => setSelectedVideo(video)}
                 >
                   <div className="relative aspect-video bg-gray-100">
-                    <img
-                      src={`https://img.youtube.com/vi/${video.videoId}/mqdefault.jpg`}
-                      alt={video.title}
-                      className="w-full h-full object-cover"
-                    />
+                    {video.videoId?.startsWith('gdrive_') ? (
+                      <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-blue-500 to-indigo-600">
+                        <HardDrive className="h-16 w-16 text-white" />
+                      </div>
+                    ) : (
+                      <img
+                        src={`https://img.youtube.com/vi/${video.videoId}/mqdefault.jpg`}
+                        alt={video.title}
+                        className="w-full h-full object-cover"
+                      />
+                    )}
                     <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
                       <Play className="h-12 w-12 text-white" />
                     </div>
+                    {video.videoId?.startsWith('gdrive_') && (
+                      <div className="absolute top-2 right-2 bg-white/90 px-2 py-1 rounded text-xs font-medium flex items-center gap-1">
+                        <HardDrive className="h-3 w-3" />
+                        Drive
+                      </div>
+                    )}
                   </div>
                   <CardContent className="p-4">
                     <h3 className="font-medium text-gray-900 line-clamp-2 mb-1">

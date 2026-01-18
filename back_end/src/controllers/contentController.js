@@ -19,7 +19,7 @@ const getContent = asyncHandler(async (req, res) => {
   // Filter by access level based on user role
   if (req.user.role === 'student') {
     query.accessLevel = { $in: ['all', 'members'] };
-  } else if (req.user.role === 'teacher') {
+  } else if (req.user.role === 'teacher' || req.user.role === 'admin') {
     query.accessLevel = { $in: ['all', 'members', 'teachers'] };
   }
   

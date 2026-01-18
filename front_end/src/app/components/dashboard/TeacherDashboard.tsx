@@ -64,17 +64,74 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ onNavigate }
     );
   }
 
-  // Extract data from API response with fallbacks
-  const stats = dashboardData?.stats || [
-    { label: 'Active Members', value: '0', change: 'No data', icon: Users, color: 'from-blue-500 to-indigo-500' },
-    { label: 'Avg. Attendance', value: '0%', change: 'No data', icon: TrendingUp, color: 'from-green-500 to-emerald-500' },
-    { label: 'Assignments Due', value: '0', change: 'No data', icon: FileCheck, color: 'from-orange-500 to-amber-500' },
-    { label: 'Sessions This Month', value: '0', change: 'No data', icon: Calendar, color: 'from-purple-500 to-pink-500' },
+  // Extract data from API response and map to expected format
+  const members = dashboardData?.members || { total: 0 };
+  const attendance = dashboardData?.attendance || { averageAttendance: 0, totalSessions: 0 };
+  const assignments = dashboardData?.assignments || { pendingGrading: 0, total: 0, submissions: 0, graded: 0 };
+  const sessions = dashboardData?.sessions || [];
+  const announcements = dashboardData?.announcements || [];
+  const upcomingEvents = dashboardData?.upcomingEvents || [];
+
+  const stats = [
+    { 
+      label: 'Active Members', 
+      value: members.total.toString(), 
+      change: `${members.students || 0} students`, 
+      icon: Users, 
+      color: 'from-blue-500 to-indigo-500' 
+    },
+    { 
+      label: 'Avg. Attendance', 
+      value: `${attendance.averageAttendance}%`, 
+      change: `${attendance.totalSessions} sessions`, 
+      icon: TrendingUp, 
+      color: 'from-green-500 to-emerald-500' 
+    },
+    { 
+      label: 'Assignments Due', 
+      value: assignments.pendingGrading.toString(), 
+      change: `${assignments.total} total`, 
+      icon: FileCheck, 
+      color: 'from-orange-500 to-amber-500' 
+    },
+    { 
+      label: 'Sessions This Month', 
+      value: attendance.totalSessions.toString(), 
+      change: `${attendance.totalRecords || 0} records`, 
+      icon: Calendar, 
+      color: 'from-purple-500 to-pink-500' 
+    },
   ];
 
-  const attendanceTrend = dashboardData?.attendanceTrend || [];
-  const assignmentStats = dashboardData?.assignmentStats || [];
-  const recentActivity = dashboardData?.recentActivity || [];
+  // Map sessions to attendance trend data
+  const attendanceTrend = sessions.map((session: any) => ({
+    session: session.title || session.name || 'Session',
+    attendance: session.attendanceSummary?.percentage || 0,
+    date: new Date(session.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+  }));
+
+  // Map assignment stats for pie chart
+  const assignmentStats = [
+    { name: 'Graded', value: assignments.graded, color: '#10b981' },
+    { name: 'Pending', value: assignments.pendingGrading, color: '#f59e0b' },
+    { name: 'No Submission', value: Math.max(0, assignments.total - assignments.submissions), color: '#ef4444' },
+  ].filter(stat => stat.value > 0);
+
+  // Map recent activity from announcements and events
+  const recentActivity = [
+    ...announcements.slice(0, 3).map((ann: any) => ({
+      type: 'announcement',
+      title: ann.title,
+      time: new Date(ann.createdAt).toLocaleDateString(),
+      author: ann.author?.name || 'Unknown'
+    })),
+    ...upcomingEvents.slice(0, 2).map((event: any) => ({
+      type: 'event',
+      title: event.topic,
+      time: new Date(event.date).toLocaleDateString(),
+      attendees: event.registeredAttendees?.length || 0
+    }))
+  ];
 
   return (
     <div className="space-y-6">

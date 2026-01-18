@@ -6,6 +6,7 @@ import { Navbar } from '@/app/components/layout/Navbar';
 import { Sidebar, PageType } from '@/app/components/layout/Sidebar';
 import { StudentDashboard } from '@/app/components/dashboard/StudentDashboard';
 import { TeacherDashboard } from '@/app/components/dashboard/TeacherDashboard';
+import { AdminDashboard } from '@/app/components/dashboard/AdminDashboard';
 import { AttendancePage } from '@/app/components/pages/AttendancePage';
 import { AgendaPage } from '@/app/components/pages/AgendaPage';
 import { LearningContentPage } from '@/app/components/pages/LearningContentPage';
@@ -74,11 +75,13 @@ const AppContent: React.FC = () => {
       switch (currentPage) {
         case 'dashboard':
           logger.debug('AppContent', 'Rendering dashboard', { role: user?.role });
-          return user?.role === 'student' ? (
-            <StudentDashboard onNavigate={handlePageChange} />
-          ) : (
-            <TeacherDashboard onNavigate={handlePageChange} />
-          );
+          if (user?.role === 'student') {
+            return <StudentDashboard onNavigate={handlePageChange} />;
+          } else if (user?.role === 'admin') {
+            return <AdminDashboard onNavigate={handlePageChange} />;
+          } else {
+            return <TeacherDashboard onNavigate={handlePageChange} />;
+          }
         case 'attendance':
           logger.debug('AppContent', 'Rendering AttendancePage');
           return <AttendancePage />;

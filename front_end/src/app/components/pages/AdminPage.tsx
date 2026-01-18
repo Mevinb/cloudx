@@ -7,6 +7,40 @@ import { Label } from '@/app/components/ui/label';
 import { Badge } from '@/app/components/ui/badge';
 
 export const AdminPage: React.FC = () => {
+  // Handler functions
+  const handleManageRoles = () => {
+    alert('Manage Roles feature\n\nThis will open a dialog to:\n- View all user roles\n- Assign roles to users\n- Modify role permissions\n\nFeature coming soon!');
+  };
+
+  const handlePermissions = () => {
+    alert('Permissions Management\n\nThis will allow you to:\n- Configure role-based permissions\n- Set access levels for different features\n- Define custom permission sets\n\nFeature coming soon!');
+  };
+
+  const handleActivityLogs = () => {
+    alert('Activity Logs\n\nView system activity including:\n- User login/logout events\n- Content uploads and modifications\n- Admin actions and changes\n- Security events\n\nFeature coming soon!');
+  };
+
+  const handleBackupData = () => {
+    if (confirm('Create a backup of all system data?\n\nThis will create a complete backup of:\n- User database\n- Content and files\n- Settings and configurations\n\nProceed with backup?')) {
+      alert('Starting backup process...\n\nYou will receive an email when the backup is complete.');
+    }
+  };
+
+  const handleExportUsers = () => {
+    alert('Export Users\n\nExporting user data to CSV format...\n\nFeature coming soon!');
+    // TODO: Implement CSV export
+    // const csvData = generateUserCSV();
+    // downloadCSV(csvData, 'users.csv');
+  };
+
+  const handleViewAnalytics = () => {
+    alert('Analytics Dashboard\n\nThis will show:\n- User engagement metrics\n- Content usage statistics\n- Session attendance trends\n- System performance data\n\nFeature coming soon!');
+  };
+
+  const handleSystemConfig = () => {
+    alert('System Configuration\n\nAdvanced settings for:\n- Server configuration\n- Database settings\n- Email and notification settings\n- Integration configurations\n\nFeature coming soon!');
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -130,15 +164,27 @@ export const AdminPage: React.FC = () => {
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-            <Button variant="outline" className="h-auto flex-col gap-2 py-4">
+            <Button 
+              variant="outline" 
+              className="h-auto flex-col gap-2 py-4"
+              onClick={handleManageRoles}
+            >
               <Users className="w-6 h-6 text-blue-600" />
               <span className="text-sm">Manage Roles</span>
             </Button>
-            <Button variant="outline" className="h-auto flex-col gap-2 py-4">
+            <Button 
+              variant="outline" 
+              className="h-auto flex-col gap-2 py-4"
+              onClick={handlePermissions}
+            >
               <Shield className="w-6 h-6 text-purple-600" />
               <span className="text-sm">Permissions</span>
             </Button>
-            <Button variant="outline" className="h-auto flex-col gap-2 py-4">
+            <Button 
+              variant="outline" 
+              className="h-auto flex-col gap-2 py-4"
+              onClick={handleActivityLogs}
+            >
               <Activity className="w-6 h-6 text-green-600" />
               <span className="text-sm">Activity Logs</span>
             </Button>
@@ -188,19 +234,35 @@ export const AdminPage: React.FC = () => {
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            <Button variant="outline" className="h-auto flex-col gap-2 py-4">
+            <Button 
+              variant="outline" 
+              className="h-auto flex-col gap-2 py-4"
+              onClick={handleBackupData}
+            >
               <Database className="w-6 h-6 text-blue-600" />
               <span className="text-sm">Backup Data</span>
             </Button>
-            <Button variant="outline" className="h-auto flex-col gap-2 py-4">
+            <Button 
+              variant="outline" 
+              className="h-auto flex-col gap-2 py-4"
+              onClick={handleExportUsers}
+            >
               <Users className="w-6 h-6 text-green-600" />
               <span className="text-sm">Export Users</span>
             </Button>
-            <Button variant="outline" className="h-auto flex-col gap-2 py-4">
+            <Button 
+              variant="outline" 
+              className="h-auto flex-col gap-2 py-4"
+              onClick={handleViewAnalytics}
+            >
               <Activity className="w-6 h-6 text-purple-600" />
               <span className="text-sm">View Analytics</span>
             </Button>
-            <Button variant="outline" className="h-auto flex-col gap-2 py-4">
+            <Button 
+              variant="outline" 
+              className="h-auto flex-col gap-2 py-4"
+              onClick={handleSystemConfig}
+            >
               <Settings className="w-6 h-6 text-orange-600" />
               <span className="text-sm">System Config</span>
             </Button>

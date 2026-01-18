@@ -17,18 +17,15 @@ const createAccount = async () => {
     await mongoose.connect(process.env.MONGODB_URI);
     console.log('✅ Connected to MongoDB\n');
 
-    // Hash password
-    const hashedPassword = await bcrypt.hash('mevin123', 12);
-
-    // Create account
+    // Create account (password will be hashed by the model's pre-save hook)
     const user = await User.create({
-      name: 'Mevin Benty',
-      email: 'mevinbenty507@gmail.com',
-      password: hashedPassword,
-      role: 'student',
+      name: 'mevin Benty',
+      email: 'botgaming507@gmail.com',
+      password: 'mevin123',
+      role: 'admin',
       batch: '2024-2025',
-      skills: ['Cloud Computing', 'Web Development'],
-      bio: 'CloudX Club Member',
+      skills: ['Cloud Computing', 'Web Development', 'System Administration'],
+      bio: 'CloudX Club Admin',
       isActive: true
     });
 

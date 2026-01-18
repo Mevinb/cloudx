@@ -38,36 +38,69 @@ const extractYouTubeId = (url) => {
   const vMatch = url.match(/youtube\.com\/v\/([a-zA-Z0-9_-]{11})/);
   if (vMatch) return vMatch[1];
 
-  // Pattern 5: Just the video ID (11 characters)
-  const idOnlyMatch = url.match(/^[a-zA-Z0-9_-]{11}$/);
-  if (idOnlyMatch) return idOnlyMatch[0];
+  // Pattern 5: Just the video ID
+  if (/^[a-zA-Z0-9_-]{11}$/.test(url)) {
+    return url;
+  }
 
   return null;
 };
 
 /**
- * @desc    Add a new YouTube video
+ * Extract Google Drive file ID from various URL formats
+ * Supports:
+ * - https://drive.google.com/file/d/FILE_ID/view
+ * - https://drive.google.com/open?id=FILE_ID
+ * - https://drive.google.com/uc?id=FILE_ID
+ */
+const extractGoogleDriveId = (url) => {
+  if (!url) return null;
+
+  // Clean the URL
+  url = url.trim();
+
+  // Pattern 1: drive.google.com/file/d/FILE_ID
+  const fileMatch = url.match(/drive\.google\.com\/file\/d\/([a-zA-Z0-9_-]+)/);
+  if (fileMatch) return fileMatch[1];
+
+  // Pattern 2: drive.google.com/open?id=FILE_ID
+  const openMatch = url.match(/drive\.google\.com\/open\?id=([a-zA-Z0-9_-]+)/);
+  if (openMatch) return openMatch[1];
+
+  // Pattern 3: drive.google.com/uc?id=FILE_ID
+  const ucMatch = url.match(/drive\.google\.com\/uc\?id=([a-zA-Z0-9_-]+)/);
+  if (ucMatch) return ucMatch[1];
+
+  return null;
+};
+
+/**
+ * @desc    Add a new video (YouTube or Google Drive)
  * @route   POST /api/v1/videos
  * @access  Private (Teacher/Admin)
  */
 exports.addVideo = asyncHandler(async (req, res, next) => {
-  const { title, youtubeUrl, description } = req.body;
+  const { title, youtubeUrl, description, videoSource = 'youtube' } = req.body;
 
   // Validate required fields
   if (!title || !youtubeUrl) {
-    return next(new AppError('Title and YouTube URL are required', 400));
+    return next(new AppError('Title and URL are required', 400));
   }
 
-  // Extract video ID
-  const videoId = extractYouTubeId(youtubeUrl);
-
-  if (!videoId) {
-    return next(
-      new AppError(
-        'Invalid YouTube URL. Please provide a valid YouTube link.',
-        400
-      )
-    );
+  // Extract video ID based on source
+  let videoId;
+  if (videoSource === 'gdrive') {
+    videoId = extractGoogleDriveId(youtubeUrl);
+    if (!videoId) {
+      return next(new AppError('Invalid Google Drive URL. Please use a shareable link.', 400));
+    }
+    // Prefix Google Drive IDs to distinguish them
+    videoId = 'gdrive_' + videoId;
+  } else {
+    videoId = extractYouTubeId(youtubeUrl);
+    if (!videoId) {
+      return next(new AppError('Invalid YouTube URL', 400));
+    }
   }
 
   // Check if video already exists

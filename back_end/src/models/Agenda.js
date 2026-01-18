@@ -100,4 +100,17 @@ agendaSchema.virtual('attendeeCount').get(function() {
   return this.registeredAttendees ? this.registeredAttendees.length : 0;
 });
 
+// Virtual for time (for backward compatibility)
+agendaSchema.virtual('time').get(function() {
+  if (this.startTime && this.endTime) {
+    return `${this.startTime} - ${this.endTime}`;
+  }
+  return this.startTime || '';
+});
+
+// Virtual for attendees count alias
+agendaSchema.virtual('attendees').get(function() {
+  return this.registeredAttendees ? this.registeredAttendees.length : 0;
+});
+
 module.exports = mongoose.model('Agenda', agendaSchema);

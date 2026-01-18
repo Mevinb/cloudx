@@ -211,13 +211,18 @@ const updateAnnouncement = asyncHandler(async (req, res) => {
 /**
  * @desc    Delete announcement
  * @route   DELETE /api/v1/announcements/:id
- * @access  Private (Admin)
+ * @access  Private (Teacher/Admin - own announcements or admin)
  */
 const deleteAnnouncement = asyncHandler(async (req, res) => {
   const announcement = await Announcement.findById(req.params.id);
   
   if (!announcement) {
     throw new AppError('Announcement not found', 404);
+  }
+  
+  // Only author or admin can delete
+  if (announcement.author.toString() !== req.user._id.toString() && req.user.role !== 'admin') {
+    throw new AppError('Not authorized to delete this announcement', 403);
   }
   
   await Announcement.findByIdAndDelete(req.params.id);

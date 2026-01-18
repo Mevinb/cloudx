@@ -26,8 +26,8 @@ router.post('/', isTeacherOrAdmin, announcementValidators.create, announcementCo
 // Update announcement (teachers/admin)
 router.put('/:id', isTeacherOrAdmin, commonValidators.mongoId, announcementController.updateAnnouncement);
 
-// Delete announcement (admin only)
-router.delete('/:id', isAdmin, commonValidators.mongoId, announcementController.deleteAnnouncement);
+// Delete announcement (teachers/admin - own or admin all)
+router.delete('/:id', isTeacherOrAdmin, commonValidators.mongoId, announcementController.deleteAnnouncement);
 
 // Pin/Unpin announcement (admin only)
 router.put('/:id/pin', isAdmin, commonValidators.mongoId, announcementController.togglePin);
