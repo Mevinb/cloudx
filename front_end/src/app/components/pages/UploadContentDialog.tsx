@@ -205,7 +205,7 @@ export const UploadContentDialog: React.FC<UploadContentDialogProps> = ({
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto scrollbar-hide">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-xl">
             <Upload className="w-6 h-6 text-blue-600" />
